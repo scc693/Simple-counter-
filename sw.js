@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'counter-pwa-v1';
+const CACHE_VERSION = 'cc-cache-v3';
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const APP_SHELL = [
   './',

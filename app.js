@@ -155,6 +155,14 @@ function changeCount(delta) {
   feedback();
 }
 
+function stepUpOnce() {
+  changeCount(getStep());
+}
+
+function stepDownOnce() {
+  changeCount(-getStep());
+}
+
 function resetCount() {
   setCount(0);
   feedback();
@@ -277,32 +285,85 @@ function handleResetSequence() {
   announce('Sequence reset for current description');
 }
 
-function attachRepeater(button, delta) {
-  let timeoutId;
-  let intervalId;
-  const stepAction = () => changeCount(delta * getStep());
+function makePressRepeater(button, onStep) {
+  let holdTimer = null;
+  let repeatTimer = null;
+  let repeating = false;
+  let pressed = false;
+  let suppressNextClick = false;
 
-  const start = event => {
+  const clearTimers = () => {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+    if (repeatTimer) {
+      clearInterval(repeatTimer);
+      repeatTimer = null;
+    }
+    repeating = false;
+    pressed = false;
+  };
+
+  const startPress = event => {
+    if (event.button != null && event.button !== 0) {
+      return;
+    }
     event.preventDefault();
-    stepAction();
-    timeoutId = window.setTimeout(() => {
-      intervalId = window.setInterval(stepAction, 90);
-    }, 350);
+    button.setPointerCapture?.(event.pointerId);
+    pressed = true;
+    repeating = false;
+    holdTimer = window.setTimeout(() => {
+      if (!pressed) return;
+      repeating = true;
+      suppressNextClick = true;
+      onStep();
+      repeatTimer = window.setInterval(onStep, 100);
+    }, 300);
   };
 
-  const stop = () => {
-    clearTimeout(timeoutId);
-    clearInterval(intervalId);
+  const finishPress = () => {
+    if (!pressed) {
+      return;
+    }
+    const wasRepeating = repeating;
+    clearTimers();
+    suppressNextClick = true;
+    if (!wasRepeating) {
+      onStep();
+    }
   };
 
-  button.addEventListener('pointerdown', start);
-  button.addEventListener('pointerleave', stop);
-  window.addEventListener('pointerup', stop);
+  const cancelPress = () => {
+    if (!pressed) {
+      return;
+    }
+    clearTimers();
+    suppressNextClick = false;
+  };
+
+  button.addEventListener('pointerdown', startPress);
+  ['pointerup', 'pointerleave', 'lostpointercapture'].forEach(type => {
+    button.addEventListener(type, finishPress);
+  });
+  button.addEventListener('pointercancel', cancelPress);
+  button.addEventListener('blur', cancelPress);
+  window.addEventListener('blur', cancelPress);
+
+  button.addEventListener('click', event => {
+    if (suppressNextClick) {
+      event.stopImmediatePropagation();
+      event.preventDefault();
+      suppressNextClick = false;
+      return;
+    }
+    onStep();
+  }, { capture: true });
 }
 
 function bindEvents() {
-  elements.increment.addEventListener('click', () => changeCount(getStep()));
-  elements.decrement.addEventListener('click', () => changeCount(-getStep()));
+  makePressRepeater(elements.increment, stepUpOnce);
+  makePressRepeater(elements.decrement, stepDownOnce);
   elements.reset.addEventListener('click', resetCount);
   elements.step.addEventListener('change', getStep);
   elements.label.addEventListener('input', handleDescriptionChange);
@@ -341,22 +402,13 @@ function bindEvents() {
     }
     switch (event.key) {
       case 'ArrowUp':
-      case 'ArrowRight':
-      case '+':
-      case '=':
-      case 'Enter':
-      case ' ': {
         event.preventDefault();
-        changeCount(getStep());
+        stepUpOnce();
         break;
-      }
       case 'ArrowDown':
-      case 'ArrowLeft':
-      case '-': {
         event.preventDefault();
-        changeCount(-getStep());
+        stepDownOnce();
         break;
-      }
       case '0':
       case 'r':
       case 'R': {
@@ -376,9 +428,6 @@ function bindEvents() {
         break;
     }
   });
-
-  attachRepeater(elements.increment, 1);
-  attachRepeater(elements.decrement, -1);
 }
 
 function init() {
