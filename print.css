@@ -1,0 +1,128 @@
+@media screen {
+  body.print-page {
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    margin: 0;
+    background: #f8f9fb;
+    color: #102027;
+    padding: clamp(1rem, 3vw, 2.5rem);
+  }
+
+  body.print-page main {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  body.print-page h1 {
+    margin-bottom: 0.25rem;
+  }
+
+  body.print-page ul {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  body.print-page li {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 0.5rem;
+    background: white;
+    padding: 0.65rem 0.85rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 0.4rem 1.2rem -0.9rem rgba(0,0,0,0.4);
+  }
+
+  body.print-page .print-time {
+    font-feature-settings: "tnum" 1;
+    color: #546e7a;
+  }
+
+  body.print-page .print-label {
+    font-weight: 600;
+  }
+
+  body.print-page .print-seq {
+    color: #1e88e5;
+  }
+
+  body.print-page .print-count {
+    font-weight: 700;
+    font-size: 1.35rem;
+  }
+}
+
+@media print {
+  :root {
+    color-scheme: light;
+  }
+
+  body.print-page {
+    font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+    margin: 0;
+    padding: 1.2cm;
+    background: #fff;
+    color: #000;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 0.5cm;
+  }
+
+  header h1 {
+    margin: 0;
+    font-size: 16pt;
+  }
+
+  header p {
+    margin: 0.2cm 0 0;
+    font-size: 10pt;
+  }
+
+  ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  li {
+    display: grid;
+    grid-template-columns: 3.5cm 1fr 2cm;
+    gap: 0.3cm;
+    padding: 0.3cm 0;
+    border-bottom: 1px solid rgba(0,0,0,0.2);
+    break-inside: avoid;
+  }
+
+  li:last-child {
+    border-bottom: none;
+  }
+
+  .print-time {
+    font-size: 10pt;
+    color: #333;
+  }
+
+  .print-label {
+    font-weight: 600;
+    font-size: 12pt;
+  }
+
+  .print-seq {
+    font-size: 10pt;
+    color: #000;
+  }
+
+  .print-count {
+    font-size: 14pt;
+    font-weight: 700;
+    text-align: right;
+  }
+
+  @page {
+    margin: 1.2cm;
+  }
+}

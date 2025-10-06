@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Printable Tape</title>
+  <link rel="stylesheet" href="print.css">
+  <meta name="robots" content="noindex">
+</head>
+<body class="print-page">
+  <main>
+    <header>
+      <h1>Counter Tape</h1>
+      <p id="generated"></p>
+    </header>
+    <section>
+      <ul id="printTapeList"></ul>
+    </section>
+  </main>
+  <template id="printTapeItem">
+    <li>
+      <time class="print-time"></time>
+      <div class="print-body">
+        <span class="print-label"></span>
+        <span class="print-seq"></span>
+      </div>
+      <span class="print-count"></span>
+    </li>
+  </template>
+  <script>
+    (function() {
+      let tape = [];
+      try {
+        const parsed = JSON.parse(localStorage.getItem('clicker-state') || '{}');
+        tape = Array.isArray(parsed.tape) ? parsed.tape : [];
+      } catch (error) {
+        console.error('Unable to read stored tape', error);
+      }
+      const list = document.getElementById('printTapeList');
+      const template = document.getElementById('printTapeItem');
+      const generated = document.getElementById('generated');
+      generated.textContent = tape.length ? `Generated ${new Date().toLocaleString()}` : 'No tape entries stored yet.';
+      tape.forEach(entry => {
+        const clone = template.content.firstElementChild.cloneNode(true);
+        const timeEl = clone.querySelector('.print-time');
+        const labelEl = clone.querySelector('.print-label');
+        const seqEl = clone.querySelector('.print-seq');
+        const countEl = clone.querySelector('.print-count');
+        timeEl.dateTime = entry.ts;
+        timeEl.textContent = new Date(entry.ts).toLocaleString();
+        labelEl.textContent = entry.label || '—';
+        seqEl.textContent = entry.seq != null ? `Seq ${entry.seq}` : '—';
+        countEl.textContent = entry.count;
+        list.appendChild(clone);
+      });
+      if (new URLSearchParams(location.search).get('auto') === '1' && tape.length) {
+        window.addEventListener('load', () => setTimeout(() => window.print(), 100));
+      }
+    })();
+  </script>
+</body>
+</html>
