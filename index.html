@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="system">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d47a1">
+  <title>Clicker Counter PWA</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="print.css" media="print">
+</head>
+<body>
+  <header class="app-header">
+    <h1>Clicker Counter</h1>
+    <p class="tagline">Track counts, build printable tapes, stay offline-ready.</p>
+  </header>
+  <main>
+    <section class="panel" aria-labelledby="context-heading">
+      <div class="section-header">
+        <h2 id="context-heading">Counting context</h2>
+      </div>
+      <label class="field">
+        <span>Description</span>
+        <input type="text" id="label" name="label" placeholder="e.g., Truck — Concrete" autocomplete="off" aria-describedby="sequence-info">
+      </label>
+      <div class="toggle-row">
+        <label class="switch">
+          <input type="checkbox" id="seqEnabled" checked>
+          <span class="switch-label">Sequence this item</span>
+        </label>
+        <output id="sequenceDisplay" role="status" aria-live="polite">Sequence #1</output>
+        <button type="button" id="resetSequence" class="secondary">Reset Sequence</button>
+      </div>
+      <p id="sequence-info" class="help">Each description has its own running sequence. Printing to tape records the current count and advances the sequence.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="counter-heading">
+      <div class="section-header">
+        <h2 id="counter-heading">Counter</h2>
+      </div>
+      <output id="count" role="status" aria-live="polite" aria-atomic="true">0</output>
+      <div class="controls">
+        <button type="button" id="decrement" class="control" aria-label="Decrement">−</button>
+        <button type="button" id="increment" class="control" aria-label="Increment">+</button>
+      </div>
+      <div class="controls">
+        <button type="button" id="reset" class="secondary">Reset</button>
+        <label class="field step-field">
+          <span>Step</span>
+          <input type="number" id="step" min="1" value="1">
+        </label>
+      </div>
+      <div class="toggle-grid">
+        <label class="switch">
+          <input type="checkbox" id="soundToggle">
+          <span class="switch-label">Sound</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="hapticsToggle">
+          <span class="switch-label">Haptics</span>
+        </label>
+        <label class="select">
+          <span>Theme</span>
+          <select id="themeToggle">
+            <option value="system">System</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="compactToggle">
+          <span class="switch-label">Compact layout</span>
+        </label>
+      </div>
+      <div class="action-row">
+        <button type="button" id="printTape" class="primary">Print to Tape</button>
+        <button type="button" id="shareCount" class="secondary">Share / Export Count</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="tape-heading">
+      <div class="section-header">
+        <h2 id="tape-heading">Tape log</h2>
+        <div class="section-actions">
+          <button type="button" id="exportTape" class="secondary">Export / Print Tape</button>
+          <button type="button" id="clearTape" class="danger">Clear Tape</button>
+        </div>
+      </div>
+      <p class="help">Tape entries capture the timestamp, description, sequence, and count. Clearing the tape removes all entries.</p>
+      <ul id="tapeList" aria-live="polite" aria-label="Tape entries"></ul>
+      <template id="tapeItemTemplate">
+        <li class="tape-item">
+          <span class="tape-time"></span>
+          <div class="tape-body">
+            <span class="tape-label"></span>
+            <span class="tape-seq"></span>
+          </div>
+          <span class="tape-count"></span>
+        </li>
+      </template>
+    </section>
+  </main>
+  <div id="announcer" class="sr-only" aria-live="polite"></div>
+  <footer class="app-footer">
+    <p>Built for offline use. Install to keep the counter on hand anywhere.</p>
+  </footer>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
