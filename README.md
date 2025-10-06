@@ -4,12 +4,13 @@ An offline-ready clicker counter with a printable tape workflow. Built with vani
 
 ## Features
 
-- Increment, decrement, reset, and adjustable step values with long-press auto-repeat and keyboard shortcuts.
+- Reliable increment, decrement, and reset controls with long-press auto-repeat that avoids double-counting and supports arrow key shortcuts.
 - Description-based sequencing that tracks separate counts for each label.
 - "Print to Tape" workflow that logs timestamped entries and automatically advances sequences.
 - Persistent tape log with export/print view optimized for PDF and hard-copy records.
 - Optional haptics and audio feedback, plus theme and compact layout toggles.
 - Full offline support via service worker precaching for GitHub Pages hosting.
+- Print preview with a dedicated Close button for returning to the main counter.
 
 ## Getting Started
 
@@ -32,10 +33,12 @@ An offline-ready clicker counter with a printable tape workflow. Built with vani
 
 | Action | Keys |
 | --- | --- |
-| Increment | `Space`, `Enter`, `+`, `=`, `ArrowUp`, `ArrowRight` |
-| Decrement | `-`, `ArrowDown`, `ArrowLeft` |
+| Increment | `ArrowUp` |
+| Decrement | `ArrowDown` |
 | Reset | `0`, `R` |
 | Print to tape | `Shift` + `P` |
+
+Standard button interactions (`Space` / `Enter`) continue to work when the increment or decrement buttons are focused.
 
 ## Deploying to GitHub Pages
 

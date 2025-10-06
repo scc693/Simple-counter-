@@ -10,6 +10,9 @@
 <body class="print-page">
   <main>
     <header>
+      <button type="button" id="closePreview" class="close-preview">
+        ← Close preview
+      </button>
       <h1>Counter Tape</h1>
       <p id="generated"></p>
     </header>
@@ -39,6 +42,7 @@
       const list = document.getElementById('printTapeList');
       const template = document.getElementById('printTapeItem');
       const generated = document.getElementById('generated');
+      const closeButton = document.getElementById('closePreview');
       generated.textContent = tape.length ? `Generated ${new Date().toLocaleString()}` : 'No tape entries stored yet.';
       tape.forEach(entry => {
         const clone = template.content.firstElementChild.cloneNode(true);
@@ -55,6 +59,15 @@
       });
       if (new URLSearchParams(location.search).get('auto') === '1' && tape.length) {
         window.addEventListener('load', () => setTimeout(() => window.print(), 100));
+      }
+      if (closeButton) {
+        closeButton.addEventListener('click', () => {
+          if (window.opener && !window.opener.closed) {
+            window.close();
+          } else {
+            window.location.href = './';
+          }
+        });
       }
     })();
   </script>

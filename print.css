@@ -7,6 +7,14 @@
     padding: clamp(1rem, 3vw, 2.5rem);
   }
 
+  body.print-page header {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+
   body.print-page main {
     max-width: 720px;
     margin: 0 auto;
@@ -14,6 +22,32 @@
 
   body.print-page h1 {
     margin-bottom: 0.25rem;
+  }
+
+  body.print-page .close-preview {
+    appearance: none;
+    border: none;
+    background: #1e88e5;
+    color: white;
+    font-weight: 600;
+    padding: 0.55rem 1.1rem;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 0.6rem 1.2rem -1rem rgba(30, 136, 229, 0.9);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    letter-spacing: 0.01em;
+  }
+
+  body.print-page .close-preview:hover,
+  body.print-page .close-preview:focus-visible {
+    background: #1668b5;
+  }
+
+  body.print-page .close-preview:focus-visible {
+    outline: 3px solid rgba(30, 136, 229, 0.4);
+    outline-offset: 3px;
   }
 
   body.print-page ul {
@@ -120,6 +154,10 @@
     font-size: 14pt;
     font-weight: 700;
     text-align: right;
+  }
+
+  .close-preview {
+    display: none !important;
   }
 
   @page {
