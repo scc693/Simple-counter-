@@ -1,11 +1,20 @@
-const STORAGE_KEY = 'clicker-state';
+const STORAGE_KEY = 'cc:v3';
+const LEGACY_KEYS = ['clicker-state'];
+
 const defaultState = {
   count: 0,
   step: 1,
+  job: '',
   label: '',
   seqEnabled: true,
+  seqTitleMode: 'simple',
+  seqTitleCustom: '',
   seqByLabel: {},
   tape: [],
+  daily: {
+    dateISO: getLocalDateISO(),
+    entries: []
+  },
   toggles: {
     sound: false,
     haptics: false,
@@ -20,16 +29,24 @@ const elements = {
   decrement: document.getElementById('decrement'),
   reset: document.getElementById('reset'),
   step: document.getElementById('step'),
+  job: document.getElementById('job'),
   label: document.getElementById('label'),
   seqEnabled: document.getElementById('seqEnabled'),
+  seqTitleMode: document.getElementById('seqTitleMode'),
+  seqTitleCustom: document.getElementById('seqTitleCustom'),
+  seqTitleCustomField: document.getElementById('seqTitleCustomField'),
   sequenceDisplay: document.getElementById('sequenceDisplay'),
   resetSequence: document.getElementById('resetSequence'),
   printTape: document.getElementById('printTape'),
   shareCount: document.getElementById('shareCount'),
   exportTape: document.getElementById('exportTape'),
+  exportDailyCsv: document.getElementById('exportDailyCsv'),
   clearTape: document.getElementById('clearTape'),
   tapeList: document.getElementById('tapeList'),
   tapeTemplate: document.getElementById('tapeItemTemplate'),
+  dailyDetails: document.getElementById('dailyTapeDetails'),
+  dailyList: document.getElementById('dailyTapeList'),
+  clearDay: document.getElementById('clearDay'),
   soundToggle: document.getElementById('soundToggle'),
   hapticsToggle: document.getElementById('hapticsToggle'),
   themeToggle: document.getElementById('themeToggle'),
@@ -38,24 +55,32 @@ const elements = {
 };
 
 let state = loadState();
+if (ensureDailyDate(state)) {
+  saveState();
+}
 let audioContext;
 
 function loadState() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return deepClone(defaultState);
-    const parsed = JSON.parse(stored);
-    return {
-      ...deepClone(defaultState),
-      ...parsed,
-      seqByLabel: { ...defaultState.seqByLabel, ...(parsed.seqByLabel || {}) },
-      tape: Array.isArray(parsed.tape) ? parsed.tape : [],
-      toggles: { ...defaultState.toggles, ...(parsed.toggles || {}) }
-    };
+    if (stored) {
+      const migrated = migrateState(JSON.parse(stored));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      return migrated;
+    }
+
+    for (const key of LEGACY_KEYS) {
+      const legacy = localStorage.getItem(key);
+      if (!legacy) continue;
+      const migrated = migrateState(JSON.parse(legacy));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      try { localStorage.removeItem(key); } catch (error) { console.warn('Unable to remove legacy state', error); }
+      return migrated;
+    }
   } catch (error) {
     console.error('Failed to load state', error);
-    return deepClone(defaultState);
   }
+  return deepClone(defaultState);
 }
 
 function saveState() {
@@ -68,6 +93,142 @@ function saveState() {
 
 function deepClone(obj) {
   return JSON.parse(JSON.stringify(obj));
+}
+
+function migrateState(raw) {
+  const base = deepClone(defaultState);
+  if (!raw || typeof raw !== 'object') {
+    return base;
+  }
+  const next = {
+    ...base,
+    count: Number.isFinite(raw.count) ? raw.count : base.count,
+    step: Math.max(1, Number(raw.step) || base.step),
+    job: typeof raw.job === 'string' ? raw.job : base.job,
+    label: typeof raw.label === 'string' ? raw.label : base.label,
+    seqEnabled: raw.seqEnabled !== false,
+    seqTitleMode: ['none', 'simple', 'custom'].includes(raw.seqTitleMode) ? raw.seqTitleMode : base.seqTitleMode,
+    seqTitleCustom: typeof raw.seqTitleCustom === 'string' ? raw.seqTitleCustom : base.seqTitleCustom,
+    toggles: {
+      ...base.toggles,
+      ...(typeof raw.toggles === 'object' && raw.toggles ? raw.toggles : {})
+    }
+  };
+
+  next.seqByLabel = {};
+  if (raw.seqByLabel && typeof raw.seqByLabel === 'object') {
+    for (const [key, value] of Object.entries(raw.seqByLabel)) {
+      const numeric = Number(value);
+      if (Number.isFinite(numeric) && numeric > 0) {
+        next.seqByLabel[key] = Math.floor(numeric);
+      }
+    }
+  }
+
+  const normalizeEntries = entries => {
+    if (!Array.isArray(entries)) return [];
+    return entries.map(entry => normalizeTapeEntry(entry, next)).filter(Boolean);
+  };
+
+  next.tape = normalizeEntries(raw.tape);
+
+  if (raw.daily && typeof raw.daily === 'object') {
+    const dateISO = typeof raw.daily.dateISO === 'string' ? raw.daily.dateISO : null;
+    next.daily = {
+      dateISO: dateISO || base.daily.dateISO,
+      entries: normalizeEntries(raw.daily.entries)
+    };
+  }
+
+  ensureDailyDate(next);
+  return next;
+}
+
+function normalizeTapeEntry(entry, context = defaultState) {
+  if (!entry || typeof entry !== 'object') return null;
+  const id = typeof entry.id === 'string' ? entry.id : generateId();
+  const tsValue = Number(entry.ts);
+  let ts = Number.isFinite(tsValue) ? tsValue : Date.parse(entry.ts);
+  if (!Number.isFinite(ts)) {
+    ts = Date.now();
+  }
+  const label = typeof entry.label === 'string' ? entry.label : '';
+  const job = typeof entry.job === 'string' ? entry.job : (typeof context.job === 'string' ? context.job : '');
+  const seqValue = entry.seq == null ? null : Number(entry.seq);
+  const seq = Number.isFinite(seqValue) ? Math.max(0, Math.floor(seqValue)) : null;
+  let seqMode = typeof entry.seqMode === 'string' ? entry.seqMode : null;
+  if (!['none', 'simple', 'custom'].includes(seqMode)) {
+    seqMode = seq != null ? 'simple' : 'none';
+  }
+  let customPrefix = '';
+  if (seqMode === 'custom') {
+    if (typeof entry.seqTitleCustom === 'string' && entry.seqTitleCustom.trim()) {
+      customPrefix = entry.seqTitleCustom.trim();
+    } else if (typeof context.seqTitleCustom === 'string') {
+      customPrefix = context.seqTitleCustom;
+    }
+  }
+  let seqText = typeof entry.seqText === 'string' ? entry.seqText : '';
+  if (seq == null) {
+    seqMode = 'none';
+    seqText = '';
+  } else if (!seqText) {
+    seqText = getSequenceText(seqMode, seq, customPrefix);
+  }
+  const countValue = Number(entry.count);
+  const count = Number.isFinite(countValue) ? countValue : 0;
+  return { id, ts, job, label, seq, seqMode, seqText, count };
+}
+
+function ensureDailyDate(target = state) {
+  let changed = false;
+  if (!target.daily || typeof target.daily !== 'object') {
+    target.daily = deepClone(defaultState.daily);
+    return true;
+  }
+  const today = getLocalDateISO();
+  if (target.daily.dateISO !== today) {
+    target.daily.dateISO = today;
+    target.daily.entries = [];
+    changed = true;
+  }
+  if (!Array.isArray(target.daily.entries)) {
+    target.daily.entries = [];
+    changed = true;
+  }
+  return changed;
+}
+
+function getLocalDateISO(date = new Date()) {
+  const tzOffsetMs = date.getTimezoneOffset() * 60 * 1000;
+  const local = new Date(date.getTime() - tzOffsetMs);
+  return local.toISOString().slice(0, 10);
+}
+
+function getSequenceText(mode, seq, custom = '') {
+  if (seq == null || mode === 'none') {
+    return '';
+  }
+  if (mode === 'custom') {
+    const prefix = custom ? `${custom.trim()} ` : '';
+    return `${prefix}#${seq}`.trim();
+  }
+  return `#${seq}`;
+}
+
+function generateId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+function formatCsvValue(value) {
+  const stringValue = value == null ? '' : String(value);
+  if (/[",\n]/.test(stringValue)) {
+    return `"${stringValue.replace(/"/g, '""')}"`;
+  }
+  return stringValue;
 }
 
 function getLabelKey(label = state.label) {
@@ -83,46 +244,77 @@ function getNextSequence() {
 }
 
 function updateSequenceDisplay() {
+  if (!elements.sequenceDisplay) return;
   if (!state.seqEnabled) {
     elements.sequenceDisplay.textContent = 'Sequence off';
     elements.sequenceDisplay.setAttribute('aria-label', 'Sequence disabled for this description');
     return;
   }
   const seq = getNextSequence();
-  elements.sequenceDisplay.textContent = `Sequence #${seq}`;
-  elements.sequenceDisplay.removeAttribute('aria-label');
+  const displayText = getSequenceText(state.seqTitleMode, seq, state.seqTitleCustom) || `#${seq}`;
+  const hiddenOnTape = state.seqTitleMode === 'none';
+  elements.sequenceDisplay.textContent = hiddenOnTape ? `Next: #${seq}` : `Next: ${displayText}`;
+  elements.sequenceDisplay.setAttribute('aria-label', hiddenOnTape ? `Next sequence number ${seq}, hidden on tape` : `Next sequence ${displayText}`);
+}
+
+function updateSequenceModeUI() {
+  if (!elements.seqTitleMode || !elements.seqTitleCustomField || !elements.seqTitleCustom) return;
+  elements.seqTitleMode.value = state.seqTitleMode;
+  const isCustom = state.seqTitleMode === 'custom';
+  elements.seqTitleCustomField.hidden = !isCustom;
+  elements.seqTitleCustom.disabled = !isCustom;
+  elements.seqTitleCustom.value = state.seqTitleCustom;
 }
 
 function updateCountDisplay() {
   elements.count.textContent = state.count;
 }
 
-function updateTapeList() {
-  const list = elements.tapeList;
+function renderTapeEntries(list, entries, emptyMessage) {
+  if (!list || !elements.tapeTemplate) return;
   list.innerHTML = '';
-  if (!state.tape.length) {
+  if (!entries.length) {
     const empty = document.createElement('li');
-    empty.textContent = 'Tape is empty. Use "Print to Tape" to add entries.';
+    empty.textContent = emptyMessage;
     empty.className = 'help';
     empty.setAttribute('role', 'status');
     list.appendChild(empty);
     return;
   }
-  state.tape.forEach(entry => {
+  entries.forEach(entry => {
     const clone = elements.tapeTemplate.content.firstElementChild.cloneNode(true);
     clone.dataset.id = entry.id;
     const timeEl = clone.querySelector('.tape-time');
     const labelEl = clone.querySelector('.tape-label');
+    const jobEl = clone.querySelector('.tape-job');
     const seqEl = clone.querySelector('.tape-seq');
     const countEl = clone.querySelector('.tape-count');
     const date = new Date(entry.ts);
     timeEl.textContent = date.toLocaleString();
-    timeEl.dateTime = entry.ts;
+    timeEl.dateTime = date.toISOString();
     labelEl.textContent = entry.label || '—';
-    seqEl.textContent = entry.seq != null ? `Seq ${entry.seq}` : '—';
+    if (jobEl) {
+      jobEl.textContent = entry.job || '';
+      jobEl.hidden = !entry.job;
+    }
+    if (seqEl) {
+      seqEl.textContent = entry.seqText || '';
+      seqEl.hidden = !entry.seqText;
+    }
     countEl.textContent = entry.count;
     list.appendChild(clone);
   });
+}
+
+function updateTapeList() {
+  renderTapeEntries(elements.tapeList, state.tape, 'Tape is empty. Use "Print to Tape" to add entries.');
+}
+
+function updateDailyTapeList() {
+  if (ensureDailyDate()) {
+    saveState();
+  }
+  renderTapeEntries(elements.dailyList, state.daily.entries, 'Daily tape is empty. Every Print-to-Tape event will appear here.');
 }
 
 function applyToggles() {
@@ -219,23 +411,30 @@ function getStep() {
 }
 
 function handlePrintToTape() {
+  ensureDailyDate();
+  const seq = state.seqEnabled ? getNextSequence() : null;
+  const seqMode = state.seqEnabled ? state.seqTitleMode : 'none';
   const entry = {
-    id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
-    ts: new Date().toISOString(),
+    id: generateId(),
+    ts: Date.now(),
+    job: state.job.trim(),
     label: state.label.trim(),
-    seq: state.seqEnabled ? getNextSequence() : null,
+    seq,
+    seqMode,
+    seqText: seq != null ? getSequenceText(seqMode, seq, state.seqTitleCustom) : '',
     count: state.count
   };
   state.tape = [entry, ...state.tape];
-  if (state.seqEnabled) {
+  state.daily.entries = [entry, ...state.daily.entries];
+  if (seq != null) {
     const key = getLabelKey();
-    state.seqByLabel[key] = entry.seq + 1;
+    state.seqByLabel[key] = seq + 1;
   }
   setCount(0);
   announce('Entry added to tape');
   updateSequenceDisplay();
   updateTapeList();
-  saveState();
+  updateDailyTapeList();
 }
 
 function handleClearTape() {
@@ -265,8 +464,75 @@ function handleShareCount() {
   }
 }
 
+function handleExportDailyCsv() {
+  const rolled = ensureDailyDate();
+  if (rolled) {
+    saveState();
+  }
+  const merged = new Map();
+  state.daily.entries.forEach(entry => merged.set(entry.id, entry));
+  state.tape.forEach(entry => merged.set(entry.id, entry));
+  const combined = Array.from(merged.values());
+  if (!combined.length) {
+    announce('No entries to export yet');
+    return;
+  }
+  combined.sort((a, b) => a.ts - b.ts);
+  const rows = [
+    ['timestamp', 'job', 'label', 'sequence', 'sequence_mode', 'sequence_text', 'count']
+  ];
+  combined.forEach(entry => {
+    rows.push([
+      new Date(entry.ts).toISOString(),
+      entry.job || '',
+      entry.label || '',
+      entry.seq != null ? entry.seq : '',
+      entry.seqMode || (entry.seq != null ? 'simple' : 'none'),
+      entry.seqText || '',
+      entry.count
+    ]);
+  });
+  const csv = rows.map(row => row.map(formatCsvValue).join(',')).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const filename = `clicker-counter-${state.daily.dateISO || getLocalDateISO()}.csv`;
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = 'noopener';
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+  window.setTimeout(() => {
+    if (confirm('Clear day from counter?')) {
+      clearDayState({ skipConfirm: true });
+    } else {
+      announce('Daily report saved');
+    }
+  }, 75);
+}
+
+function handleJobChange() {
+  state.job = elements.job.value;
+  saveState();
+}
+
 function handleDescriptionChange() {
   state.label = elements.label.value;
+  saveState();
+  updateSequenceDisplay();
+}
+
+function handleSeqTitleModeChange() {
+  state.seqTitleMode = elements.seqTitleMode.value;
+  updateSequenceModeUI();
+  saveState();
+  updateSequenceDisplay();
+}
+
+function handleSeqTitleCustomInput() {
+  state.seqTitleCustom = elements.seqTitleCustom.value;
   saveState();
   updateSequenceDisplay();
 }
@@ -283,6 +549,34 @@ function handleResetSequence() {
   saveState();
   updateSequenceDisplay();
   announce('Sequence reset for current description');
+}
+
+function clearDayState({ skipConfirm = false } = {}) {
+  const hasData = state.count !== 0 || state.tape.length || (state.daily && state.daily.entries && state.daily.entries.length);
+  if (!hasData) {
+    announce('Nothing to clear');
+    return false;
+  }
+  if (!skipConfirm) {
+    const confirmed = confirm('Clear day from counter? This removes today\'s tape entries, daily log, and resets sequences.');
+    if (!confirmed) {
+      return false;
+    }
+  }
+  state.tape = [];
+  state.daily = { dateISO: getLocalDateISO(), entries: [] };
+  state.seqByLabel = {};
+  state.count = 0;
+  saveState();
+  updateCountDisplay();
+  updateTapeList();
+  updateDailyTapeList();
+  if (elements.dailyDetails) {
+    elements.dailyDetails.open = false;
+  }
+  updateSequenceDisplay();
+  announce('Day cleared');
+  return true;
 }
 
 function makePressRepeater(button, onStep) {
@@ -366,13 +660,18 @@ function bindEvents() {
   makePressRepeater(elements.decrement, stepDownOnce);
   elements.reset.addEventListener('click', resetCount);
   elements.step.addEventListener('change', getStep);
+  elements.job.addEventListener('input', handleJobChange);
   elements.label.addEventListener('input', handleDescriptionChange);
   elements.seqEnabled.addEventListener('change', handleSeqToggle);
+  elements.seqTitleMode.addEventListener('change', handleSeqTitleModeChange);
+  elements.seqTitleCustom.addEventListener('input', handleSeqTitleCustomInput);
   elements.resetSequence.addEventListener('click', handleResetSequence);
   elements.printTape.addEventListener('click', handlePrintToTape);
   elements.shareCount.addEventListener('click', handleShareCount);
   elements.exportTape.addEventListener('click', handleExportTape);
+  elements.exportDailyCsv.addEventListener('click', handleExportDailyCsv);
   elements.clearTape.addEventListener('click', handleClearTape);
+  elements.clearDay.addEventListener('click', () => clearDayState());
 
   elements.soundToggle.addEventListener('change', () => {
     state.toggles.sound = elements.soundToggle.checked;
@@ -432,12 +731,16 @@ function bindEvents() {
 
 function init() {
   elements.step.value = state.step;
+  elements.job.value = state.job;
   elements.label.value = state.label;
   elements.seqEnabled.checked = state.seqEnabled;
+  elements.seqTitleCustom.value = state.seqTitleCustom;
+  updateSequenceModeUI();
   applyToggles();
   updateSequenceDisplay();
   updateCountDisplay();
   updateTapeList();
+  updateDailyTapeList();
   bindEvents();
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (state.toggles.theme === 'system') {

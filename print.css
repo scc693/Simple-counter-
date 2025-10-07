@@ -78,6 +78,11 @@
     font-weight: 600;
   }
 
+  body.print-page .print-job {
+    font-size: 0.85rem;
+    color: #607d8b;
+  }
+
   body.print-page .print-seq {
     color: #1e88e5;
   }
@@ -143,6 +148,11 @@
   .print-label {
     font-weight: 600;
     font-size: 12pt;
+  }
+
+  .print-job {
+    font-size: 10pt;
+    color: #444;
   }
 
   .print-seq {

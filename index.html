@@ -20,6 +20,10 @@
         <h2 id="context-heading">Counting context</h2>
       </div>
       <label class="field">
+        <span>Job</span>
+        <input type="text" id="job" name="job" placeholder="e.g., Pour A" autocomplete="off">
+      </label>
+      <label class="field">
         <span>Description</span>
         <input type="text" id="label" name="label" placeholder="e.g., Truck — Concrete" autocomplete="off" aria-describedby="sequence-info">
       </label>
@@ -31,7 +35,21 @@
         <output id="sequenceDisplay" role="status" aria-live="polite">Sequence #1</output>
         <button type="button" id="resetSequence" class="secondary">Reset Sequence</button>
       </div>
-      <p id="sequence-info" class="help">Each description has its own running sequence. Printing to tape records the current count and advances the sequence.</p>
+      <div class="sequence-options" aria-live="polite">
+        <label class="select">
+          <span>Sequence title</span>
+          <select id="seqTitleMode">
+            <option value="simple">Simple (#1)</option>
+            <option value="custom">Custom prefix</option>
+            <option value="none">None</option>
+          </select>
+        </label>
+        <label class="field" id="seqTitleCustomField">
+          <span>Custom prefix</span>
+          <input type="text" id="seqTitleCustom" name="seqTitleCustom" placeholder="e.g., Truck" autocomplete="off">
+        </label>
+      </div>
+      <p id="sequence-info" class="help">Each description has its own running sequence. Printing to tape records the current count, advances the sequence, and applies the selected title style.</p>
     </section>
 
     <section class="panel" aria-labelledby="counter-heading">
@@ -83,6 +101,7 @@
         <h2 id="tape-heading">Tape log</h2>
         <div class="section-actions">
           <button type="button" id="exportTape" class="secondary">Export / Print Tape</button>
+          <button type="button" id="exportDailyCsv" class="secondary">Print Daily Report (CSV)</button>
           <button type="button" id="clearTape" class="danger">Clear Tape</button>
         </div>
       </div>
@@ -93,13 +112,22 @@
           <span class="tape-time"></span>
           <div class="tape-body">
             <span class="tape-label"></span>
+            <span class="tape-job"></span>
             <span class="tape-seq"></span>
           </div>
           <span class="tape-count"></span>
         </li>
       </template>
+      <details id="dailyTapeDetails">
+        <summary>Daily tape (all Print-to-Tape entries today)</summary>
+        <p class="help">Daily tape keeps every Print-to-Tape event for the calendar day, even if you clear the main tape.</p>
+        <ul id="dailyTapeList" aria-live="polite" aria-label="Daily tape entries"></ul>
+      </details>
     </section>
   </main>
+  <div class="page-actions">
+    <button type="button" id="clearDay" class="danger wide">Clear Day / Reset All</button>
+  </div>
   <div id="announcer" class="sr-only" aria-live="polite"></div>
   <footer class="app-footer">
     <p>Built for offline use. Install to keep the counter on hand anywhere.</p>
