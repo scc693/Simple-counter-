@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'cc-cache-v3';
+const CACHE_VERSION = 'cc-cache-v4';
 const BASE = self.location.pathname.replace(/sw\.js$/, '');
 const APP_SHELL = [
   './',

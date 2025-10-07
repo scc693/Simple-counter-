@@ -5,9 +5,13 @@ An offline-ready clicker counter with a printable tape workflow. Built with vani
 ## Features
 
 - Reliable increment, decrement, and reset controls with long-press auto-repeat that avoids double-counting and supports arrow key shortcuts.
-- Description-based sequencing that tracks separate counts for each label.
+- Description-based sequencing that tracks separate counts for each label, with per-label title modes (simple numbers, hidden, or custom prefixes).
+- Job context field stored with every tape entry for downstream grouping.
 - "Print to Tape" workflow that logs timestamped entries and automatically advances sequences.
+- Daily tape that preserves every Print-to-Tape event for the current calendar day.
+- One-click daily CSV export combining the main and daily tapes, with an optional post-export day reset.
 - Persistent tape log with export/print view optimized for PDF and hard-copy records.
+- Dedicated "Clear Day / Reset All" action to clear the counter, tapes, and sequences without touching global preferences.
 - Optional haptics and audio feedback, plus theme and compact layout toggles.
 - Full offline support via service worker precaching for GitHub Pages hosting.
 - Print preview with a dedicated Close button for returning to the main counter.

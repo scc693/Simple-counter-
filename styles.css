@@ -99,6 +99,7 @@ main {
 .section-actions {
   display: flex;
   gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .field {
@@ -131,6 +132,13 @@ button:focus-visible {
   flex-wrap: wrap;
   gap: 0.75rem;
   align-items: center;
+}
+
+.sequence-options {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: end;
 }
 
 .switch {
@@ -300,6 +308,11 @@ button:disabled {
   font-weight: 600;
 }
 
+.tape-job {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
 .tape-seq {
   font-size: 0.85rem;
   opacity: 0.85;
@@ -313,6 +326,37 @@ button:disabled {
 .app-footer {
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+#dailyTapeDetails {
+  margin-top: 1rem;
+}
+
+#dailyTapeDetails summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#dailyTapeList {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: min(50vh, 380px);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.page-actions {
+  display: flex;
+  justify-content: center;
+  padding: 0 0 1rem;
+}
+
+.page-actions .wide {
+  width: min(420px, 100%);
 }
 
 @media (prefers-reduced-motion: reduce) {

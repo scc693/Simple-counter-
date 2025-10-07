@@ -25,6 +25,7 @@
       <time class="print-time"></time>
       <div class="print-body">
         <span class="print-label"></span>
+        <span class="print-job"></span>
         <span class="print-seq"></span>
       </div>
       <span class="print-count"></span>
@@ -32,12 +33,20 @@
   </template>
   <script>
     (function() {
+      const STORAGE_KEYS = ['cc:v3', 'clicker-state'];
       let tape = [];
-      try {
-        const parsed = JSON.parse(localStorage.getItem('clicker-state') || '{}');
-        tape = Array.isArray(parsed.tape) ? parsed.tape : [];
-      } catch (error) {
-        console.error('Unable to read stored tape', error);
+      for (const key of STORAGE_KEYS) {
+        const stored = localStorage.getItem(key);
+        if (!stored) continue;
+        try {
+          const parsed = JSON.parse(stored);
+          tape = normalizeTapeEntries(parsed && parsed.tape);
+          if (tape.length || key === 'cc:v3') {
+            break;
+          }
+        } catch (error) {
+          console.error('Unable to parse stored tape', error);
+        }
       }
       const list = document.getElementById('printTapeList');
       const template = document.getElementById('printTapeItem');
@@ -48,12 +57,21 @@
         const clone = template.content.firstElementChild.cloneNode(true);
         const timeEl = clone.querySelector('.print-time');
         const labelEl = clone.querySelector('.print-label');
+        const jobEl = clone.querySelector('.print-job');
         const seqEl = clone.querySelector('.print-seq');
         const countEl = clone.querySelector('.print-count');
-        timeEl.dateTime = entry.ts;
-        timeEl.textContent = new Date(entry.ts).toLocaleString();
+        const date = new Date(entry.ts);
+        timeEl.dateTime = date.toISOString();
+        timeEl.textContent = date.toLocaleString();
         labelEl.textContent = entry.label || '—';
-        seqEl.textContent = entry.seq != null ? `Seq ${entry.seq}` : '—';
+        if (jobEl) {
+          jobEl.textContent = entry.job || '';
+          jobEl.hidden = !entry.job;
+        }
+        if (seqEl) {
+          seqEl.textContent = entry.seqText || '';
+          seqEl.hidden = !entry.seqText;
+        }
         countEl.textContent = entry.count;
         list.appendChild(clone);
       });
@@ -68,6 +86,46 @@
             window.location.href = './';
           }
         });
+      }
+
+      function normalizeTapeEntries(raw) {
+        if (!Array.isArray(raw)) return [];
+        return raw.map(entry => {
+          if (!entry || typeof entry !== 'object') return null;
+          const tsNumber = Number(entry.ts);
+          let ts = Number.isFinite(tsNumber) ? tsNumber : Date.parse(entry.ts);
+          if (!Number.isFinite(ts)) {
+            ts = Date.now();
+          }
+          const seqValue = entry.seq == null ? null : Number(entry.seq);
+          const seq = Number.isFinite(seqValue) ? Math.floor(seqValue) : null;
+          let seqMode = typeof entry.seqMode === 'string' ? entry.seqMode : (seq != null ? 'simple' : 'none');
+          if (!['none', 'simple', 'custom'].includes(seqMode)) {
+            seqMode = seq != null ? 'simple' : 'none';
+          }
+          let seqText = typeof entry.seqText === 'string' ? entry.seqText : '';
+          if (seq != null && !seqText) {
+            if (seqMode === 'custom' && typeof entry.seqTitleCustom === 'string' && entry.seqTitleCustom.trim()) {
+              seqText = `${entry.seqTitleCustom.trim()} #${seq}`;
+            } else {
+              seqText = `#${seq}`;
+            }
+          }
+          if (seq == null) {
+            seqMode = 'none';
+            seqText = '';
+          }
+          return {
+            id: typeof entry.id === 'string' ? entry.id : `${ts}-${Math.random().toString(16).slice(2)}`,
+            ts,
+            label: typeof entry.label === 'string' ? entry.label : '',
+            job: typeof entry.job === 'string' ? entry.job : '',
+            seq,
+            seqMode,
+            seqText,
+            count: Number(entry.count) || 0
+          };
+        }).filter(Boolean);
       }
     })();
   </script>
