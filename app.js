@@ -231,14 +231,26 @@ function formatCsvValue(value) {
   return stringValue;
 }
 
-function getLabelKey(label = state.label) {
-  return (label || '').trim().toLowerCase() || '__default__';
+function getSequenceKeys(label = state.label, job = state.job) {
+  const normalizedLabel = (label || '').trim().toLowerCase();
+  const normalizedJob = (job || '').trim().toLowerCase();
+  const labelKey = normalizedLabel || '__default__';
+  const jobKey = normalizedJob || '__default_job__';
+  return {
+    key: `job:${jobKey}|label:${labelKey}`,
+    legacyKey: labelKey
+  };
 }
 
 function getNextSequence() {
-  const key = getLabelKey();
+  const { key, legacyKey } = getSequenceKeys();
   if (!state.seqByLabel[key]) {
-    state.seqByLabel[key] = 1;
+    if (legacyKey && state.seqByLabel[legacyKey]) {
+      state.seqByLabel[key] = state.seqByLabel[legacyKey];
+      delete state.seqByLabel[legacyKey];
+    } else {
+      state.seqByLabel[key] = 1;
+    }
   }
   return state.seqByLabel[key];
 }
@@ -247,7 +259,7 @@ function updateSequenceDisplay() {
   if (!elements.sequenceDisplay) return;
   if (!state.seqEnabled) {
     elements.sequenceDisplay.textContent = 'Sequence off';
-    elements.sequenceDisplay.setAttribute('aria-label', 'Sequence disabled for this description');
+    elements.sequenceDisplay.setAttribute('aria-label', 'Sequence disabled for this job and description');
     return;
   }
   const seq = getNextSequence();
@@ -427,8 +439,11 @@ function handlePrintToTape() {
   state.tape = [entry, ...state.tape];
   state.daily.entries = [entry, ...state.daily.entries];
   if (seq != null) {
-    const key = getLabelKey();
+    const { key, legacyKey } = getSequenceKeys(entry.label, entry.job);
     state.seqByLabel[key] = seq + 1;
+    if (legacyKey && state.seqByLabel[legacyKey]) {
+      delete state.seqByLabel[legacyKey];
+    }
   }
   setCount(0);
   announce('Entry added to tape');
@@ -516,6 +531,7 @@ function handleExportDailyCsv() {
 function handleJobChange() {
   state.job = elements.job.value;
   saveState();
+  updateSequenceDisplay();
 }
 
 function handleDescriptionChange() {
@@ -544,11 +560,14 @@ function handleSeqToggle() {
 }
 
 function handleResetSequence() {
-  const key = getLabelKey();
+  const { key, legacyKey } = getSequenceKeys();
   state.seqByLabel[key] = 1;
+  if (legacyKey && state.seqByLabel[legacyKey]) {
+    delete state.seqByLabel[legacyKey];
+  }
   saveState();
   updateSequenceDisplay();
-  announce('Sequence reset for current description');
+  announce('Sequence reset for current job and description');
 }
 
 function clearDayState({ skipConfirm = false } = {}) {
