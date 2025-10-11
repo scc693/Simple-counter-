@@ -529,7 +529,17 @@ function handleExportDailyCsv() {
 }
 
 function handleJobChange() {
-  state.job = elements.job.value;
+  const previousJob = state.job;
+  const newJob = elements.job.value;
+  const jobChanged = (previousJob || '').trim().toLowerCase() !== (newJob || '').trim().toLowerCase();
+  state.job = newJob;
+  if (jobChanged) {
+    const { key, legacyKey } = getSequenceKeys();
+    if (legacyKey && state.seqByLabel[legacyKey]) {
+      delete state.seqByLabel[legacyKey];
+    }
+    state.seqByLabel[key] = 1;
+  }
   saveState();
   updateSequenceDisplay();
 }
@@ -586,8 +596,21 @@ function clearDayState({ skipConfirm = false } = {}) {
   state.daily = { dateISO: getLocalDateISO(), entries: [] };
   state.seqByLabel = {};
   state.count = 0;
+  state.job = '';
+  state.label = '';
+  state.step = defaultState.step;
+  state.seqEnabled = defaultState.seqEnabled;
+  state.seqTitleMode = defaultState.seqTitleMode;
+  state.seqTitleCustom = defaultState.seqTitleCustom;
+  elements.job.value = '';
+  elements.label.value = '';
+  elements.step.value = state.step;
+  elements.seqEnabled.checked = state.seqEnabled;
+  elements.seqTitleMode.value = state.seqTitleMode;
+  elements.seqTitleCustom.value = state.seqTitleCustom;
   saveState();
   updateCountDisplay();
+  updateSequenceModeUI();
   updateTapeList();
   updateDailyTapeList();
   if (elements.dailyDetails) {
